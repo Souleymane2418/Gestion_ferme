@@ -1,0 +1,62 @@
+name: Build APK Android
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compiler l'APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Verifier Flutter
+        run: flutter doctor -v
+
+      - name: Initialiser le projet
+        run: flutter create . --project-name gestion_ferme --org com.ferme.gestion --platforms=android,ios
+
+      - name: Installer les dependances
+        run: flutter pub get
+
+      - name: Build APK release
+        run: flutter build apk --release --split-per-abi
+
+      - name: Build APK universel
+        run: flutter build apk --release
+
+      - name: Renommer les APK
+        run: |
+          cd build/app/outputs/flutter-apk/
+          ls -la
+          mv app-release.apk gestion-ferme-universel.apk || true
+          mv app-arm64-v8a-release.apk gestion-ferme-arm64.apk || true
+          mv app-armeabi-v7a-release.apk gestion-ferme-arm32.apk || true
+          mv app-x86_64-release.apk gestion-ferme-x86_64.apk || true
+          ls -la
+
+      - name: Televerser les APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestion-ferme-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 30
